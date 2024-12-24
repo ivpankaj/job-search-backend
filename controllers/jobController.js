@@ -1,4 +1,3 @@
-
 const Job = require('../models/jobs');
 
 exports.createJob = async (req, res) => {
@@ -64,22 +63,36 @@ exports.getJobs = async (req, res) => {
 
 exports.searchJobsByLocation = async (req, res) => {
   const { location } = req.query;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 20; // Default to 20 items
+  const skip = (page - 1) * limit;
 
   if (!location) {
     return res.status(400).json({ error: 'Location query parameter is required.' });
   }
 
   try {
-    const jobs = await Job.find({ location: { $regex: location, $options: 'i' } }); // Case-insensitive search
-    if (jobs.length === 0) {
-      return res.status(404).json({ error: 'No jobs found for the given location.' });
-    }
-    res.status(200).json({ jobs });
+    // Perform a case-insensitive search
+    const jobs = await Job.find({ location: { $regex: location, $options: 'i' } })
+      .skip(skip)
+      .limit(limit);
+
+    // Total matching jobs count for pagination
+    const totalJobs = await Job.countDocuments({ location: { $regex: location, $options: 'i' } });
+    const totalPages = Math.ceil(totalJobs / limit);
+
+    res.status(200).json({
+      jobs,
+      currentPage: page,
+      totalPages,
+    });
   } catch (err) {
     console.error('Error fetching jobs:', err);
     res.status(500).json({ error: 'Failed to fetch jobs.' });
   }
 };
+
+
 
 exports.getJobById = async (req, res) => {
   try {
