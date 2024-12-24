@@ -71,14 +71,22 @@ router.get('/get', async (req, res) => {
 // Filter jobs by location
 router.get('/search', async (req, res) => {
   const { location } = req.query;
+
+  if (!location) {
+    return res.status(400).json({ error: 'Location query parameter is required.' });
+  }
+
   try {
-    const jobs = await Job.find({ location: new RegExp(location, 'i') });
-    res.json(jobs);
+    const jobs = await Job.find({ location: { $regex: location, $options: 'i' } }); // Case-insensitive search
+    if (jobs.length === 0) {
+      return res.status(404).json({ error: 'No jobs found for the given location.' });
+    }
+    res.status(200).json({ jobs });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch jobs' });
+    console.error('Error fetching jobs:', err);
+    res.status(500).json({ error: 'Failed to fetch jobs.' });
   }
 });
-
 // Fetch a single job by ID
 router.get('/:jobId', async (req, res) => {
   try {
